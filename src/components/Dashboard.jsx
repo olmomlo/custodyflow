@@ -38,6 +38,7 @@ const CAMPO_LABEL = {
   festivo: 'Festivo',
   no_lectivo: 'No lectivo',
   comentario: 'Comentario',
+  estado: 'Estado',
 };
 
 function formatValor(campo, valor) {
