@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Star } from 'lucide-react';
+import { Star, MessageSquare } from 'lucide-react';
 
 /**
  * Una celda del calendario.
@@ -85,7 +85,7 @@ export function DayCell({ day, data, onTap, onLongPress }) {
 
       {/* Indicador de comentario en esquina inferior derecha */}
       {hasComment && (
-        <span className="absolute bottom-1 right-1 w-1.5 h-1.5 rounded-full bg-stone-700" />
+        <MessageSquare className="absolute bottom-1 right-1 w-3 h-3 text-stone-700" />
       )}
     </button>
   );
