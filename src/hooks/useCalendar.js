@@ -81,34 +81,50 @@ export function useCalendar() {
   }, []);
 
   // ---------- Helpers ----------
-  const fmtVal = (v) => {
-    if (v === null || v === undefined) return null;
-    if (typeof v === 'boolean') return v ? 'sí' : 'no';
-    return String(v);
+  /** Devuelve una descripción legible del estado de un día (custodia + flags). */
+  const formatEstado = (d) => {
+    if (!d) return '—';
+    const parts = [];
+    if (d.custodia === 'padre') parts.push('Padre');
+    else if (d.custodia === 'madre') parts.push('Madre');
+    if (d.festivo) parts.push('Festivo');
+    if (d.no_lectivo) parts.push('No lectivo');
+    return parts.length ? parts.join(' · ') : '—';
   };
 
-  const logCambios = useCallback(async (fecha, anterior, nuevo, autor) => {
-    const cambios = [];
-    const campos = ['custodia', 'festivo', 'no_lectivo', 'comentario'];
-    for (const campo of campos) {
-      const prev = anterior?.[campo] ?? null;
-      const next = nuevo[campo] ?? null;
-      // Normalizamos para evitar duplicados de "" vs null
-      const prevNorm = prev === '' ? null : prev;
-      const nextNorm = next === '' ? null : next;
-      if (prevNorm !== nextNorm) {
-        cambios.push({
-          fecha,
-          campo,
-          valor_anterior: fmtVal(prevNorm),
-          valor_nuevo: fmtVal(nextNorm),
-          autor,
-        });
-      }
-    }
-    if (cambios.length) {
-      await supabase.from('historial').insert(cambios);
-    }
+  /**
+   * Registra UN único cambio en el historial que resume el nuevo estado del día
+   * (custodia, festivo, no lectivo). Si el estado no ha cambiado, no inserta nada.
+   */
+  const logCambioEstado = useCallback(async (fecha, anterior, nuevo, autor) => {
+    const anteriorTxt = formatEstado(anterior);
+    const nuevoTxt = formatEstado(nuevo);
+    if (anteriorTxt === nuevoTxt) return;
+
+    await supabase.from('historial').insert({
+      fecha,
+      campo: 'estado',
+      valor_anterior: anteriorTxt,
+      valor_nuevo: nuevoTxt,
+      autor,
+    });
+  }, []);
+
+  /**
+   * Registra un cambio en el comentario del día (se usa al guardar el modal de comentario).
+   */
+  const logCambioComentario = useCallback(async (fecha, anterior, nuevo, autor) => {
+    const prev = anterior?.comentario || null;
+    const next = nuevo?.comentario || null;
+    if (prev === next) return;
+
+    await supabase.from('historial').insert({
+      fecha,
+      campo: 'comentario',
+      valor_anterior: prev,
+      valor_nuevo: next,
+      autor,
+    });
   }, []);
 
   /**
@@ -146,7 +162,7 @@ export function useCalendar() {
           const { error } = await supabase.from('dias').upsert(nuevo, { onConflict: 'fecha' });
           if (error) throw error;
         }
-        await logCambios(fechaKey, anterior, nuevo, autor);
+        await logCambioEstado(fechaKey, anterior, nuevo, autor);
       } catch (err) {
         console.error(err);
         // Revertimos en caso de error
@@ -159,7 +175,7 @@ export function useCalendar() {
         setError('Error al guardar. Revisa la conexión.');
       }
     },
-    [dias, logCambios]
+    [dias, logCambioEstado]
   );
 
   /**
@@ -196,7 +212,7 @@ export function useCalendar() {
           const { error } = await supabase.from('dias').upsert(nuevo, { onConflict: 'fecha' });
           if (error) throw error;
         }
-        await logCambios(fechaKey, anterior, nuevo, autor);
+        await logCambioComentario(fechaKey, anterior, nuevo, autor);
       } catch (err) {
         console.error(err);
         setDias((prev) => {
@@ -208,7 +224,7 @@ export function useCalendar() {
         setError('Error al guardar el comentario.');
       }
     },
-    [dias, logCambios]
+    [dias, logCambioComentario]
   );
 
   return {
