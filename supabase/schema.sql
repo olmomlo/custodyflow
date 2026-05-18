@@ -26,7 +26,7 @@ create index if not exists idx_dias_fecha on public.dias (fecha);
 create table if not exists public.historial (
   id bigserial primary key,
   fecha date not null,
-  campo text not null check (campo in ('custodia', 'festivo', 'no_lectivo', 'comentario')),
+  campo text not null check (campo in ('custodia', 'festivo', 'no_lectivo', 'comentario', 'estado')),
   valor_anterior text,
   valor_nuevo text,
   autor text not null check (autor in ('padre', 'madre')),
@@ -102,3 +102,18 @@ begin
     alter publication supabase_realtime add table public.historial;
   end if;
 end $$;
+
+-- ---------------------------------------------------------------------
+-- Migraciones para bases de datos ya existentes
+-- ---------------------------------------------------------------------
+-- Si tu proyecto se creó con una versión anterior del esquema, ejecuta
+-- esto para alinear las restricciones. En proyectos nuevos no hace nada
+-- nuevo (las "create table ... if not exists" de arriba ya incluyen las
+-- versiones actualizadas).
+-- ---------------------------------------------------------------------
+
+-- 2026-05: añadir 'estado' como campo válido en historial
+alter table public.historial drop constraint if exists historial_campo_check;
+alter table public.historial add constraint historial_campo_check
+  check (campo in ('custodia', 'festivo', 'no_lectivo', 'comentario', 'estado'));
+
